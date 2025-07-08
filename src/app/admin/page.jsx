@@ -6,16 +6,16 @@ import { socket } from "@/lib/socket";
 
 export default function Admin() {
   const [streams, setStreams] = useState([]);
-  const [recorders, setRecorders] = useState([]);
+  const [peers, setPeers] = useState({});
 
   useEffect(() => {
-    socket.onAny((event, ...args) => {
-      console.log("SOCKET EVENT:", event, args);
-    });
     socket.emit("admin-init");
 
     socket.on("incoming-stream", ({ id, signal }) => {
-      console.log("INCOMING STREAM FROM:", id);
+      if (peers[id]) {
+        console.log("Peer already exists for", id);
+        return;
+      }
 
       const peer = new Peer({
         initiator: false,
@@ -30,39 +30,32 @@ export default function Admin() {
       });
 
       peer.on("stream", (stream) => {
-        console.log("RECEIVED STREAM");
-
-        setStreams((prev) => [...prev, stream]);
-        startRecording(stream);
+        console.log("RECEIVED STREAM FROM", id);
+        setStreams((prev) => [...prev, { id, stream }]);
       });
 
+      peer.on("error", (err) => {
+        console.log("Peer error", err);
+      });
+
+      peer.on("close", () => {
+        console.log("Peer closed", id);
+        setStreams((prev) => prev.filter((s) => s.id !== id));
+        setPeers((prev) => {
+          const copy = { ...prev };
+          delete copy[id];
+          return copy;
+        });
+      });
+
+      setPeers((prev) => ({ ...prev, [id]: peer }));
       peer.signal(signal);
     });
+
+    return () => {
+      socket.off("incoming-stream");
+    };
   }, []);
-  const recordings = []; // global array
-
-  function startRecording(stream) {
-    const chunks = [];
-    const recorder = new MediaRecorder(stream);
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `recording-${Date.now()}.webm`;
-      a.click();
-    };
-
-    recorder.start();
-
-    // Store it for later stopping
-    setRecorders((prev) => [...prev, recorder]);
-  }
 
   return (
     <div
@@ -72,24 +65,15 @@ export default function Admin() {
         gap: 10,
       }}
     >
-      {streams.map((stream, i) => (
+      {streams.map(({ id, stream }) => (
         <video
-          key={i}
+          key={id}
           autoPlay
           playsInline
           muted
           ref={(el) => el && (el.srcObject = stream)}
         />
       ))}
-      <button
-        onClick={() => {
-          recorders.forEach((r) => r.state === "recording" && r.stop());
-          setRecorders([]); // optional: reset after stopping
-        }}
-        style={{ padding: 10, marginBottom: 20 }}
-      >
-        Stop All Recordings
-      </button>
     </div>
   );
 }
