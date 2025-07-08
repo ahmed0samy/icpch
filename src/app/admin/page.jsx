@@ -16,7 +16,13 @@ export default function Admin() {
     socket.on("incoming-stream", ({ id, signal }) => {
       console.log("INCOMING STREAM FROM:", id);
 
-      const peer = new Peer({ initiator: false, trickle: false });
+      const peer = new Peer({
+        initiator: false,
+        trickle: false,
+        config: {
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        },
+      });
 
       peer.on("signal", (answer) => {
         socket.emit("admin-answer", { id, signal: answer });

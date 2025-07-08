@@ -6,7 +6,14 @@ import { socket } from "@/lib/socket";
 export default function User() {
   useEffect(() => {
     navigator.mediaDevices.getDisplayMedia({ video: true }).then((stream) => {
-      const peer = new Peer({ initiator: true, trickle: false, stream });
+      const peer = new Peer({
+        initiator: true, // false on admin
+        trickle: false,
+        stream,
+        config: {
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        },
+      });
 
       peer.on("signal", (signal) => {
         socket.emit("user-ready", signal);
