@@ -18,6 +18,9 @@ export default function User() {
       peer.on("signal", (signal) => {
         socket.emit("user-ready", signal);
       });
+      peer.on("error", (err) => {
+        console.log("PEER ERROR", err);
+      });
 
       socket.on("admin-accepted", (answer) => {
         peer.signal(answer);

@@ -12,6 +12,7 @@ export default function Admin() {
     socket.onAny((event, ...args) => {
       console.log("SOCKET EVENT:", event, args);
     });
+    socket.emit("admin-init");
 
     socket.on("incoming-stream", ({ id, signal }) => {
       console.log("INCOMING STREAM FROM:", id);
