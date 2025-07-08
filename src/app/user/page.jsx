@@ -6,55 +6,52 @@ import { socket } from "@/lib/socket";
 export default function User() {
   useEffect(() => {
     let peer;
+    let stream;
 
-    useEffect(() => {
-      let stream;
+    navigator.mediaDevices.getDisplayMedia({ video: true }).then((s) => {
+      stream = s;
 
-      navigator.mediaDevices.getDisplayMedia({ video: true }).then((s) => {
-        stream = s;
-
-        peer = new Peer({
-          initiator: true,
-          trickle: false,
-          stream,
-          config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
-        });
-
-        peer.on("signal", (signal) => {
-          socket.emit("user-ready", signal);
-        });
-
-        socket.on("admin-accepted", (answer) => {
-          peer.signal(answer);
-        });
-
-        // Listen for resend request
-        socket.on("resend-signal", () => {
-          if (peer && stream) {
-            const newPeer = new Peer({
-              initiator: true,
-              trickle: false,
-              stream,
-              config: {
-                iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-              },
-            });
-
-            newPeer.on("signal", (signal) => {
-              socket.emit("user-ready", signal);
-            });
-
-            newPeer.on("error", (err) =>
-              console.log("Peer error (resend)", err)
-            );
-          }
-        });
+      peer = new Peer({
+        initiator: true,
+        trickle: false,
+        stream,
+        config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
       });
 
-      return () => {
-        socket.off("resend-signal");
-      };
-    }, []);
+      peer.on("signal", (signal) => {
+        socket.emit("user-ready", signal);
+      });
+
+      socket.on("admin-accepted", (answer) => {
+        peer.signal(answer);
+      });
+
+      // Listen for resend request
+      socket.on("resend-signal", () => {
+        if (stream) {
+          const newPeer = new Peer({
+            initiator: true,
+            trickle: false,
+            stream,
+            config: {
+              iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+            },
+          });
+
+          newPeer.on("signal", (signal) => {
+            socket.emit("user-ready", signal);
+          });
+
+          newPeer.on("error", (err) =>
+            console.log("Peer error (resend)", err)
+          );
+        }
+      });
+    });
+
+    return () => {
+      socket.off("resend-signal");
+    };
   }, []);
 
   return (
